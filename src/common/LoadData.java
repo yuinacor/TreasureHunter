@@ -1,0 +1,414 @@
+package common;
+
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Properties;
+
+import model.dto.dungeon.Dungeon;
+import model.dto.item.Armor;
+import model.dto.item.Item;
+import model.dto.item.Ring;
+import model.dto.item.weapon;
+import model.dto.scene.Scene;
+import model.dto.script.Script;
+import model.dto.skill.Passive;
+import model.dto.skill.Skill;
+import model.dto.skill.active;
+import model.dto.skill.buf;
+import model.dto.skill.heal;
+import model.dto.character.Character;
+
+public class LoadData {
+	//static으로 hash맵을 필드로 선언
+	public static HashMap<String, Dungeon> HMDungeon = null;
+	public static HashMap<String, Item> HMItem = null;	//ParseItem 클래스로 이동
+	public static HashMap<String, Character> HMCharacter = null;
+	public static HashMap<String, Skill> HMSkill = null;
+	public static Character User = null;
+	public static HashMap<String, Item> HMInventory = null;
+	public static HashMap<String, Script> HMScript = null;
+	public static HashMap<String, Scene> HMScene = null;
+	public static int EnchantStone = 10;
+
+	//생성자에서 로드 실행
+	public LoadData() {
+		//프로퍼티 객체 생성
+		Properties itemProperties = new Properties();
+		Properties dungeonProperties = new Properties();
+		Properties questProperties = new Properties();
+		Properties characterProperties = new Properties();
+		Properties itemScriptProperties = new Properties();
+		Properties SkillProperties = new Properties();
+		Properties scriptProperties = new Properties();
+		Properties sceneProperties = new Properties();
+		
+		//해쉬맵 생성
+		HMDungeon = new HashMap<>();
+		HMItem = new HashMap<>();
+		HMCharacter = new HashMap<>();
+		HMSkill = new HashMap<>();
+		HMInventory = new HashMap<>();
+		HMScript = new HashMap<>();
+		HMScene = new HashMap<>();
+		try {
+			//프로퍼티 파일 로드
+			itemProperties.load(new FileReader("itemProperties.properties"));
+			itemScriptProperties.load(new FileReader("itemScriptProperties.properties"));
+			dungeonProperties.load(new FileReader("dungeonProperties.properties"));
+			questProperties.load(new FileReader("questProperties.properties"));
+			characterProperties.load(new FileReader("characterProperties.properties"));
+			SkillProperties.load(new FileReader("skillProperties.properties"));
+			scriptProperties.load(new FileReader("ScriptProperties.properties"));
+			sceneProperties.load(new FileReader("SceneProperty.properties"));
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		//파싱 실행
+		try{
+		parseSkill(SkillProperties);
+		parseItem(itemProperties, itemScriptProperties);
+		parseCharacter(characterProperties);
+		HMInventory.put("w1", HMItem.get("w1"));
+		HMInventory.put("w2", HMItem.get("w2"));
+		HMInventory.put("w3", HMItem.get("w3"));
+		HMInventory.put("w4", HMItem.get("w4"));
+		HMInventory.put("a1", HMItem.get("a1"));
+		HMInventory.put("a2", HMItem.get("a2"));
+		HMInventory.put("a3", HMItem.get("a3"));
+		HMInventory.put("r1", HMItem.get("r1"));
+		HMInventory.put("r2", HMItem.get("r2"));
+		User.skill[0] = HMSkill.get("a1");
+		User.calStat();
+		
+		parseDungeon(dungeonProperties);
+		parseScript(scriptProperties);
+		parseScene(sceneProperties);
+		
+		for(String key : HMScene.keySet())
+			System.out.println(key);
+		
+		
+//		for(String temp : HMItem.keySet())
+//			{
+//				System.out.println(temp);
+//				System.out.println(HMItem.get(temp));
+//			}
+
+		} catch(ArrayIndexOutOfBoundsException e){
+			e.printStackTrace();
+		}
+	}
+	public void parseScene(Properties sceneProperties) {
+		for(String i : sceneProperties.stringPropertyNames()){
+			String[] temp = sceneProperties.getProperty(i).split("~");
+			
+			for(String t : temp)	//앞뒤 공백 제거
+				t = t.trim();
+			
+			int start = Integer.parseInt(temp[0]);
+			int last = Integer.parseInt(temp[1]);
+			
+			Scene s = new Scene();
+			s.script = new HashMap<>();
+			s.key = i;
+			s.start = start;
+			s.last = last;
+			System.out.println(i);
+			
+			for(int k = start;k <= last;k++)
+				s.script.put("s"+k, HMScript.get("s"+k));
+			
+			HMScene.put(i, s);
+			
+			
+		}
+	}
+	public void parseScript(Properties scriptProperties) {
+		for(String i : scriptProperties.stringPropertyNames()){
+			String[] temp = null;
+			try{
+			temp = scriptProperties.getProperty(i).split("@@");}
+			catch(NullPointerException e){
+				System.out.println("파싱에러");
+				System.out.println(i);}
+			
+//			System.out.println(i);
+			for(String t : temp)	//앞뒤 공백 제거
+				t = t.trim();
+			
+			Script s = new Script();
+			s.key = i;
+			s.name = temp[0];
+			s.script = temp[1];
+			
+			HMScript.put(i, s);
+			
+		}
+	}
+	public void parseItem(Properties itemProperties, Properties itemScriptProperties)
+	{
+		for(String i : itemProperties.stringPropertyNames()){
+//			System.out.println(itemProperties.getProperty(i));
+			
+			//무기정보부터 갖고오기
+			if(i.charAt(0)=='w')
+			{
+				String[] temp = itemProperties.getProperty(i).split(",");
+				for(int k=0;k<temp.length;k++)	//여백 제거
+					temp[k] = temp[k].trim();
+				Item item = new weapon();
+				item.num = Integer.parseInt(i.split("w")[1]);
+				item.name = temp[0];
+				item.STR = Integer.parseInt(temp[1]);
+				item.DEX = Integer.parseInt(temp[2]);
+				item.VIT = Integer.parseInt(temp[3]);
+				item.LUK = Integer.parseInt(temp[4]);
+				item.INT = Integer.parseInt(temp[5]);
+				item.rank = Integer.parseInt(temp[6]);
+				item.enchant = Integer.parseInt(temp[7]);
+				item.script = itemScriptProperties.getProperty(i);
+
+				HMItem.put(i, item);
+			}
+			//방어구 정보 가져오기
+			if(i.charAt(0)=='a')
+			{
+				String[] temp = itemProperties.getProperty(i).split(",");
+				for(int k=0;k<temp.length;k++)	//여백 제거
+					temp[k] = temp[k].trim();
+				Item item = new Armor();
+				item.num = Integer.parseInt(i.split("a")[1]);
+				item.name = temp[0];
+				item.STR = Integer.parseInt(temp[1]);
+				item.DEX = Integer.parseInt(temp[2]);
+				item.VIT = Integer.parseInt(temp[3]);
+				item.LUK = Integer.parseInt(temp[4]);
+				item.INT = Integer.parseInt(temp[5]);
+				item.rank = Integer.parseInt(temp[6]);
+				item.enchant = Integer.parseInt(temp[7]);
+				item.script = itemScriptProperties.getProperty(i);
+
+				HMItem.put(i, item);
+			}
+			//장신구 정보 가져오기
+			if(i.charAt(0)=='r')
+			{
+				String[] temp = itemProperties.getProperty(i).split(",");
+				for(int k=0;k<temp.length;k++)	//여백 제거
+					temp[k] = temp[k].trim();
+				Item item = new Ring();
+				item.num = Integer.parseInt(i.split("r")[1]);
+				item.name = temp[0];
+				item.STR = Integer.parseInt(temp[1]);
+				item.DEX = Integer.parseInt(temp[2]);
+				item.VIT = Integer.parseInt(temp[3]);
+				item.LUK = Integer.parseInt(temp[4]);
+				item.INT = Integer.parseInt(temp[5]);
+				item.rank = Integer.parseInt(temp[6]);
+				item.enchant = Integer.parseInt(temp[7]);
+				item.script = itemScriptProperties.getProperty(i);
+
+				HMItem.put(i, item);
+			}
+			//일반 아이템 정보 가져오기
+			if(i.charAt(0)=='i')
+			{
+				String[] temp = itemProperties.getProperty(i).split(",");
+				for(int k=0;k<temp.length;k++)	//여백 제거
+					temp[k] = temp[k].trim();
+				Item item = new Item();
+				item.num = Integer.parseInt(i.split("i")[1]);
+				item.name = temp[0];
+				item.STR = Integer.parseInt(temp[1]);
+				item.DEX = Integer.parseInt(temp[2]);
+				item.VIT = Integer.parseInt(temp[3]);
+				item.LUK = Integer.parseInt(temp[4]);
+				item.INT = Integer.parseInt(temp[5]);
+				item.rank = Integer.parseInt(temp[6]);
+				item.enchant = Integer.parseInt(temp[7]);
+				item.script = itemScriptProperties.getProperty(i);
+
+				HMItem.put(i, item);
+			}
+			
+		}
+	}
+
+	public void parseDungeon(Properties dungeonProperties) {
+		for (String i : dungeonProperties.stringPropertyNames()) {
+//			System.out.println(i + " = " + dungeonProperties.getProperty(i));
+
+			String[] STA = dungeonProperties.getProperty(i).split(",");
+			
+			for(int k=0;k<STA.length;k++)	//여백 제거
+					STA[k] = STA[k].trim();
+			
+			Dungeon D = new Dungeon();
+			try {
+				D.num = Integer.parseInt(i);
+				D.name = STA[0];
+				D.explain = STA[1];
+				D.depth = Integer.parseInt(STA[2]);
+				D.defaultFloorSize = Integer.parseInt(STA[3]);
+				D.rank = STA[4];
+				D.imagePath = STA[11];
+
+				int start = Integer.parseInt(STA[5].split("~")[0]);
+				int end = Integer.parseInt(STA[5].split("~")[1]);
+
+				// 던전에 등장하는 몬스터 등록
+				D.monster = new HashMap<>();
+				D.item = new HashMap<>();
+				for (int j = start; j < end; j++)
+					D.monster.put(j, HMCharacter.get(String.valueOf(j)));
+				// 던전에 등장하는 아이템들 등록
+				// 무기 등록
+				start = Integer.parseInt(STA[6].split("~")[0]);
+				end = Integer.parseInt(STA[6].split("~")[1]);
+				for (int j = start; j < end; j++)
+					D.item.put("w" + j, HMItem.get("w" + j));
+				// 방어구 등록
+				start = Integer.parseInt(STA[7].split("~")[0]);
+				end = Integer.parseInt(STA[7].split("~")[1]);
+				for (int j = start; j < end; j++)
+					D.item.put("a" + j, HMItem.get("a" + j));
+				// 반지 등록
+				start = Integer.parseInt(STA[8].split("~")[0]);
+				end = Integer.parseInt(STA[8].split("~")[1]);
+				for (int j = start; j < end; j++)
+					D.item.put("r" + j, HMItem.get("r" + j));
+				// 아이템 등록
+				start = Integer.parseInt(STA[9].split("~")[0]);
+				end = Integer.parseInt(STA[9].split("~")[1]);
+				for (int j = start; j < end; j++)
+					D.item.put("i" + j, HMItem.get("i" + j));
+
+				D.Boss = HMCharacter.get(STA[10]);
+				D.imagePath = STA[11];
+//				System.out.println(D.toString());
+				
+				for(String temp : D.item.keySet())
+					System.out.println(HMItem.get(temp));
+				
+				HMDungeon.put(i, D);
+			} catch (NullPointerException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	public void parseCharacter(Properties characterProperties){
+		
+		for(String i : characterProperties.stringPropertyNames()){
+			if(i.equals("0"))
+				userParse(characterProperties);
+			else
+				monsterParse(i, characterProperties);
+		}
+	}
+	public void monsterParse(String i, Properties characterProperties) {
+		Character temp = new Character();
+		String[] STA = characterProperties.getProperty(i).split(",");
+		temp.name = STA[0];
+		temp.LV = Integer.parseInt(STA[1].trim());
+		temp.HP = Integer.parseInt(STA[2].trim());
+		temp.MP = Integer.parseInt(STA[3].trim());
+		temp.EXP = Integer.parseInt(STA[4].trim());
+		temp.STR = Integer.parseInt(STA[5].trim());
+		temp.DEX = Integer.parseInt(STA[6].trim());
+		temp.VIT = Integer.parseInt(STA[7].trim());
+		temp.LUK = Integer.parseInt(STA[8].trim());
+		temp.INT = Integer.parseInt(STA[9].trim());
+		HMCharacter.put(i, temp);
+	}
+	public void userParse(Properties characterProperties){
+		User = new Character();
+		String[] STA = characterProperties.getProperty("0").split(",");
+		for(int k=0;k<STA.length;k++)	//여백 제거
+			STA[k] = STA[k].trim();
+		User.name = STA[0];
+		User.LV = Integer.parseInt(STA[1]);
+		User.HP = Integer.parseInt(STA[2]);
+		User.MP = Integer.parseInt(STA[3]);
+		User.EXP = Integer.parseInt(STA[4]);
+		User.STR = Integer.parseInt(STA[5]);
+		User.DEX = Integer.parseInt(STA[6]);
+		User.VIT = Integer.parseInt(STA[7]);
+		User.LUK = Integer.parseInt(STA[8]);
+		User.INT = Integer.parseInt(STA[9]);
+	}
+	
+	public void parseSkill(Properties SkillProperties)
+	{
+		for (String i : SkillProperties.stringPropertyNames()) {
+			if (i.charAt(0) == 'p') {
+				Skill skill = new Passive();
+				String temp[] = SkillProperties.getProperty(i).split(",");
+				for(int k=0;k<temp.length;k++)	//여백 제거
+					temp[k] = temp[k].trim();
+				skill.type = i.charAt(0);
+				skill.num = i.charAt(1);
+				skill.name = temp[0];
+				((Passive) skill).STR = Integer.parseInt(temp[1]);
+				((Passive) skill).DEX = Integer.parseInt(temp[2]);
+				((Passive) skill).VIT = Integer.parseInt(temp[3]);
+				((Passive) skill).LUK = Integer.parseInt(temp[4]);
+				((Passive) skill).INT = Integer.parseInt(temp[5]);
+				((Passive) skill).isEveryTurn = Boolean.parseBoolean(temp[6]);
+				((Passive) skill).HP = Integer.parseInt(temp[7]);
+				((Passive) skill).MP = Integer.parseInt(temp[8]);
+				HMSkill.put(i, skill);
+			} else if (i.charAt(0) == 'a') {
+				Skill skill = new active();
+				String temp[] = SkillProperties.getProperty(i).split(",");
+				for(int k=0;k<temp.length;k++)	//여백 제거
+					temp[k] = temp[k].trim();
+				skill.type = i.charAt(0);
+				skill.num = i.charAt(1);
+				skill.name = temp[0];
+				((active) skill).HP = Integer.parseInt(temp[1]);
+				((active) skill).MP = Integer.parseInt(temp[2]);
+				((active) skill).damage = Integer.parseInt(temp[3]);
+				((active) skill).heal = Double.parseDouble(temp[4]);
+				((active) skill).coef = Double.parseDouble(temp[5]);
+				((active) skill).hcoef = Double.parseDouble(temp[6]);
+				HMSkill.put(i, skill);
+			}
+			else if (i.charAt(0) == 'b') {
+				Skill skill = new buf();
+				String temp[] = SkillProperties.getProperty(i).split(",");
+				for(int k=0;k<temp.length;k++)	//여백 제거
+					temp[k] = temp[k].trim();
+				skill.type = i.charAt(0);
+				skill.num = i.charAt(1);
+				skill.name = temp[0];
+				((buf) skill).HP = Integer.parseInt(temp[1]);
+				((buf) skill).MP = Integer.parseInt(temp[2]);
+				((buf) skill).STR = Integer.parseInt(temp[3]);
+				((buf) skill).DEX = Integer.parseInt(temp[4]);
+				((buf) skill).VIT = Integer.parseInt(temp[5]);
+				((buf) skill).LUK = Integer.parseInt(temp[6]);
+				((buf) skill).INT = Integer.parseInt(temp[7]);
+				((buf) skill).mhp = Integer.parseInt(temp[8]);
+				((buf) skill).coef = Double.parseDouble(temp[9]);
+				
+				HMSkill.put(i, skill);
+			} else if (i.charAt(0) == 'h') {
+				Skill skill = new heal();
+				String temp[] = SkillProperties.getProperty(i).split(",");
+				for(int k=0;k<temp.length;k++)	//여백 제거
+					temp[k] = temp[k].trim();
+				skill.type = i.charAt(0);
+				skill.num = i.charAt(1);
+				skill.name = temp[0];
+				((heal) skill).HP = Integer.parseInt(temp[1]);
+				((heal) skill).MP = Integer.parseInt(temp[2]);
+				((heal) skill).coef = Double.parseDouble(temp[3]);
+				HMSkill.put(i, skill);
+			}
+		}
+	}
+}
